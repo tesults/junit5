@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Name: com/tesults/junit5
+Specification-Title: JUnit5 Tesults Plugin
+Specification-Version: 1.0.0
+Specification-Vendor: Tesults
+Implementation-Title: com.tesults.junit5
+Implementation-Version: 1.0.0
+Implementation-Vendor: Tesults
+Class-Path: tesults-junit5.jar
