@@ -17,6 +17,7 @@ import java.util.*;
 
 public class TesultsListener implements TestExecutionListener {
     List<Map<String,Object>> cases = new ArrayList<Map<String, Object>>();
+    Map<String, Long> startTimes = new HashMap<String, Long>();
 
     Boolean disabled = false;
 
@@ -116,11 +117,19 @@ public class TesultsListener implements TestExecutionListener {
 
     }
 
+    public void executionStarted(TestIdentifier testIdentifier) {
+        if (disabled) {
+            return;
+        }
+        if (testIdentifier.isTest()) {
+            startTimes.put(testIdentifier.getUniqueId(), java.lang.System.currentTimeMillis());
+        }
+    }
+
     public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
         if (disabled) {
             return;
         }
-
         if (testIdentifier.isTest()) {
             String result = testExecutionResult.getStatus().toString();
             if (result.equals("SUCCESSFUL")) {
@@ -149,6 +158,10 @@ public class TesultsListener implements TestExecutionListener {
             testCase.put("result", result);
             //testCase.put("suite", suite);
             testCase.put("reason", reason);
+            if (startTimes.get(testIdentifier.getUniqueId()) != null) {
+                testCase.put("start", startTimes.get(testIdentifier.getUniqueId()));
+            }
+            testCase.put("end", java.lang.System.currentTimeMillis());
 
             // suite, desc and custom fields
             for (TestTag tag : testIdentifier.getTags()) {

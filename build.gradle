@@ -20,7 +20,7 @@ apply plugin: "com.jfrog.bintray"
 apply plugin: "maven-publish"
 
 group 'com.tesults.junit5'
-version '1.0.4'
+version '1.1.0'
 
 sourceCompatibility = 1.8
 
