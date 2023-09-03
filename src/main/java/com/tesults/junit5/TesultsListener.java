@@ -1,5 +1,6 @@
 package com.tesults.junit5;
 
+import org.junit.jupiter.api.TestInfo;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestTag;
 import org.junit.platform.launcher.TestExecutionListener;
@@ -19,12 +20,15 @@ public class TesultsListener implements TestExecutionListener {
     List<Map<String,Object>> cases = new ArrayList<Map<String, Object>>();
     Map<String, Long> startTimes = new HashMap<String, Long>();
 
+    static Map<String, List<String>> files = new HashMap<String, List<String>>();
+
     Boolean disabled = false;
 
     // Options
     String config = System.getProperty("tesultsConfig");
     String target = System.getProperty("tesultsTarget");
-    String files = System.getProperty("tesultsFiles");
+
+    String filesDir = System.getProperty("tesultsFiles");
     Boolean nosuites = System.getProperty("tesultsNoSuites") == null ? false : true;
     String buildName = System.getProperty("tesultsBuildName");
     String buildDesc = System.getProperty("tesultsBuildDesc");
@@ -32,13 +36,13 @@ public class TesultsListener implements TestExecutionListener {
     String buildReason = System.getProperty("tesultsBuildReason");
 
     public List<String> filesForCase(String suite, String name) {
-        if (files == null) {
+        if (filesDir == null) {
             return null;
         }
         List<String> caseFiles = new ArrayList<String>();
-        String pathString = Paths.get(files, name).toString();
+        String pathString = Paths.get(filesDir, name).toString();
         if (!suite.equals("") && suite != null) {
-            pathString = Paths.get(this.files, suite, name).toString();
+            pathString = Paths.get(this.filesDir, suite, name).toString();
         }
         File path = new File(pathString);
         try {
@@ -77,8 +81,8 @@ public class TesultsListener implements TestExecutionListener {
                         System.out.println("Invalid target value in configuration file");
                     }
                 }
-                if (files == null) {
-                    files = props.getProperty("tesultsFiles", null);
+                if (filesDir == null) {
+                    filesDir = props.getProperty("tesultsFiles", null);
                 }
                 if (nosuites == false) {
                     String nosuitesConfig = props.getProperty("tesultsNoSuites", null);
@@ -152,6 +156,10 @@ public class TesultsListener implements TestExecutionListener {
             if (index > -1) {
                 name = name.substring(0,  index);
             }
+            int index2 = name.lastIndexOf("(TestInfo)");
+            if (index2 > -1) {
+                name = name.substring(0, index2);
+            }
 
             Map<String, Object> testCase = new HashMap<String, Object>();
             testCase.put("name", name);
@@ -210,11 +218,23 @@ public class TesultsListener implements TestExecutionListener {
             }
 
             // Files:
-            List<String> files = filesForCase(suite == null ? "" : suite, name);
-            if (files != null) {
-                if (files.size() > 0) {
-                    testCase.put("files", files);
+            List<String> testFiles = filesForCase(suite == null ? "" : suite, name);
+            if (testFiles != null) {
+                if (testFiles.size() > 0) {
+                    testCase.put("files", testFiles);
                 }
+            }
+
+            // Enhanced reporting files:
+            List<String> paths = files.get(testIdentifier.getDisplayName());
+            if (paths != null) {
+                List<String> existingPaths = (List<String>) testCase.get("files");
+                if (existingPaths != null) {
+                    for (String path: existingPaths) {
+                        paths.add(path);
+                    }
+                }
+                testCase.put("files", paths);
             }
 
             cases.add(testCase);
@@ -286,5 +306,20 @@ public class TesultsListener implements TestExecutionListener {
         System.out.println("message: " + response.get("message"));
         System.out.println("warnings: " + ((List<String>) response.get("warnings")).size());
         System.out.println("errors: " + ((List<String>) response.get("errors")).size());
+    }
+
+    // Enhanced reporting
+
+    public static void file (TestInfo testinfo, String path) {
+        try {
+            List<String> paths = files.get(testinfo.getDisplayName());
+            if (paths == null) {
+                paths = new ArrayList<String>();
+            }
+            paths.add(path);
+            files.put(testinfo.getDisplayName(), paths);
+        } catch (Exception ex) {
+
+        }
     }
 }
