@@ -3,7 +3,7 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'signing'
-    id 'com.vanniktech.maven.publish.base' version '0.37.0'
+    id 'com.vanniktech.maven.publish.base' version '0.35.0'
 }
 
 group 'com.tesults.junit5'
@@ -34,11 +34,6 @@ processResources {
 test {
     useJUnitPlatform()
     exclude '**/*$*'
-    if (project.hasProperty('testJavaVersion')) {
-        javaLauncher = javaToolchains.launcherFor {
-            languageVersion = JavaLanguageVersion.of(project.property('testJavaVersion'))
-        }
-    }
 }
 
 java {

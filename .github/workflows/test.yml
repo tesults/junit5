@@ -16,19 +16,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-      - name: Set up test Java
+      - name: Set up Java ${{ matrix.java }}
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: gradle
-      - name: Save test Java location
-        run: echo "TEST_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
-      - name: Set up build Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: gradle
       - name: Build and test on Java ${{ matrix.java }}
-        run: ./gradlew clean test build -PtestJavaVersion=${{ matrix.java }} -Dorg.gradle.java.installations.paths="$TEST_JAVA_HOME,$JAVA_HOME"
+        run: ./gradlew clean test build
