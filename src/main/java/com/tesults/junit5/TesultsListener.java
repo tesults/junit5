@@ -17,16 +17,17 @@ import java.nio.file.Paths;
 import java.util.*;
 
 public class TesultsListener implements TestExecutionListener {
-    List<Map<String,Object>> cases = new ArrayList<Map<String, Object>>();
-    Map<String, Long> startTimes = new HashMap<String, Long>();
+    List<Map<String,Object>> cases = Collections.synchronizedList(new ArrayList<Map<String, Object>>());
+    Map<String, Long> startTimes = Collections.synchronizedMap(new HashMap<String, Long>());
 
-    static Map<String, List<String>> files = new HashMap<String, List<String>>();
+    static Map<String, List<String>> files = Collections.synchronizedMap(new HashMap<String, List<String>>());
 
     Boolean disabled = false;
 
     // Options
     String config = System.getProperty("tesultsConfig");
     String target = System.getProperty("tesultsTarget");
+    String outputFile = resolveOutputFile();
 
     String filesDir = System.getProperty("tesultsFiles");
     Boolean nosuites = System.getProperty("tesultsNoSuites") == null ? false : true;
@@ -63,7 +64,7 @@ public class TesultsListener implements TestExecutionListener {
     }
 
     public void testPlanExecutionStarted(TestPlan testPlan) {
-        if (target == null) {
+        if (target == null && outputFile == null) {
             System.out.println("Tesults disabled - target not provided.");
             disabled = true;
             return;
@@ -75,7 +76,7 @@ public class TesultsListener implements TestExecutionListener {
                 Properties props = new Properties();
                 in = new FileInputStream(System.getProperty("tesultsConfig"));
                 props.load(in);
-                if (props.getProperty(target, null) != null) {
+                if (target != null && props.getProperty(target, null) != null) {
                     target = props.getProperty(target);
                     if (target.equals("")) {
                         System.out.println("Invalid target value in configuration file");
@@ -103,6 +104,9 @@ public class TesultsListener implements TestExecutionListener {
                 }
                 if (buildReason == null) {
                     buildReason = props.getProperty("tesultsBuildReason", null);
+                }
+                if (outputFile == null) {
+                    outputFile = nonBlank(props.getProperty("tesultsOutputFile", null));
                 }
             } catch (FileNotFoundException e) {
                 System.out.println("Configuration file specified for Tesults not found");
@@ -228,11 +232,10 @@ public class TesultsListener implements TestExecutionListener {
             // Enhanced reporting files:
             List<String> paths = files.get(testIdentifier.getDisplayName());
             if (paths != null) {
+                paths = new ArrayList<String>(paths);
                 List<String> existingPaths = (List<String>) testCase.get("files");
                 if (existingPaths != null) {
-                    for (String path: existingPaths) {
-                        paths.add(path);
-                    }
+                    paths.addAll(existingPaths);
                 }
                 testCase.put("files", paths);
             }
@@ -296,16 +299,41 @@ public class TesultsListener implements TestExecutionListener {
         Map<String, Object> results = new HashMap<String, Object>();
         results.put("cases", cases);
         data.put("results", results);
+        TesultsOutput.addMetadata(data);
 
-        //System.out.println(data.toString());
+        if (outputFile != null) {
+            try {
+                TesultsOutput.write(outputFile, cases);
+            } catch (Exception ex) {
+                System.out.println("Error writing Tesults results file: " + ex.getMessage());
+            }
+        }
 
-        // Upload
+        if (target == null) {
+            return;
+        }
+
         System.out.println("Tesults results upload...");
-        Map<String, Object> response = Results.upload(data);
+        Map<String, Object> response = upload(data);
         System.out.println("success: " + response.get("success"));
         System.out.println("message: " + response.get("message"));
         System.out.println("warnings: " + ((List<String>) response.get("warnings")).size());
         System.out.println("errors: " + ((List<String>) response.get("errors")).size());
+    }
+
+    Map<String, Object> upload(Map<String, Object> data) {
+        return Results.upload(data);
+    }
+
+    private static String resolveOutputFile() {
+        String environmentOutput = nonBlank(System.getenv("TESULTS_OUTPUT_FILE"));
+        return environmentOutput == null
+                ? nonBlank(System.getProperty("tesultsOutputFile"))
+                : environmentOutput;
+    }
+
+    private static String nonBlank(String value) {
+        return value == null || value.trim().equals("") ? null : value;
     }
 
     // Enhanced reporting
